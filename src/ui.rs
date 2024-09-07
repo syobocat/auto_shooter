@@ -1,3 +1,4 @@
+use device_query::{DeviceQuery, Keycode};
 use eframe::egui;
 use enigo::{Button, Direction::Click, Enigo, Mouse, Settings};
 use std::{
@@ -25,6 +26,8 @@ enum State {
 pub struct AutoShooter {
     input: String,
     is_valid_input: bool,
+    wait_for_a_key: bool,
+    condition: Option<Keycode>,
     state: State,
     calculated_from: State,
     cps: u64,
@@ -37,6 +40,8 @@ impl Default for AutoShooter {
         Self {
             input: DEFAULT_CPS.to_string(),
             is_valid_input: true,
+            wait_for_a_key: false,
+            condition: None,
             state: State::Cps,
             calculated_from: State::Cps,
             cps: DEFAULT_CPS,
@@ -64,6 +69,19 @@ impl AutoShooter {
 
 impl eframe::App for AutoShooter {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let device_state = device_query::DeviceState::new();
+        if self.wait_for_a_key {
+            let keys: Vec<Keycode> = device_state.get_keys();
+            if let Some(key) = keys.get(0) {
+                if key == &Keycode::Escape {
+                    self.condition = None
+                } else {
+                    self.condition = Some(*key);
+                }
+                self.wait_for_a_key = false;
+            }
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("自動連射ツール");
             if ui
@@ -133,6 +151,21 @@ impl eframe::App for AutoShooter {
                 });
             });
 
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                if self.wait_for_a_key {
+                    ui.add_enabled(false, egui::Button::new("キーを押してください"));
+                } else {
+                    if ui.button("条件指定").clicked() {
+                        self.wait_for_a_key = true;
+                    };
+                }
+                if let Some(key) = self.condition {
+                    ui.label(format!("{key:?}"));
+                }
+            });
+
             ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                 if self.is_running.load(Ordering::Relaxed) {
                     ui.label("連射中…");
@@ -148,7 +181,11 @@ impl eframe::App for AutoShooter {
                         ui.add_enabled(false, egui::Button::new("停止"));
                         if ui.button("開始").clicked() {
                             self.is_running.store(true, Ordering::Relaxed);
-                            tokio::spawn(auto_click(self.wait, Arc::clone(&self.is_running)));
+                            tokio::spawn(auto_click(
+                                self.wait,
+                                Arc::clone(&self.is_running),
+                                self.condition,
+                            ));
                         };
                     }
                 });
@@ -157,11 +194,15 @@ impl eframe::App for AutoShooter {
     }
 }
 
-async fn auto_click(wait: u64, is_running: Arc<AtomicBool>) {
+async fn auto_click(wait: u64, is_running: Arc<AtomicBool>, condition: Option<Keycode>) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    let device_state = device_query::DeviceState::new();
     while is_running.load(Ordering::Relaxed) {
-        if enigo.button(Button::Left, Click).is_err() {
-            std::process::exit(1);
+        let keys: Vec<Keycode> = device_state.get_keys();
+        if condition.is_none() || keys.contains(&condition.unwrap()) {
+            if enigo.button(Button::Left, Click).is_err() {
+                std::process::exit(1);
+            }
         }
         std::thread::sleep(Duration::from_nanos(wait));
     }
