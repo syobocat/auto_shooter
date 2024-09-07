@@ -90,7 +90,7 @@ jobs:
       - name: Publish artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: plegosa_${{ matrix.platform.release_for }}
+          name: auto_shooter_${{ matrix.platform.release_for }}
           path: target/${{ matrix.platform.target }}/release/auto_shooter${{ matrix.platform.ext }}
       - name: Rename executable file
         run: mv target/${{ matrix.platform.target }}/release/auto_shooter${{ matrix.platform.ext }} auto_shooter_${{ matrix.platform.release_for }}${{ matrix.platform.ext }}
