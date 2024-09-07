@@ -71,14 +71,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Update repository
-        run: sudo apt-get update --yes
-        if: contains(matrix.platform.os, 'ubuntu')
-      - name: Install libxkbcommon
-        run: sudo apt-get install --yes libxkbcommon-dev
-        if: contains(matrix.platform.os, 'ubuntu')
       - name: Install musl-tools
-        run: sudo apt-get install --yes musl-tools
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
         if: contains(matrix.platform.release_for, 'musl')
       - name: Build
         uses: houseabsolute/actions-rust-cross@v0
