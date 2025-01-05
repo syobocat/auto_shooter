@@ -62,9 +62,10 @@ impl Default for AutoShooter {
 impl AutoShooter {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut fonts = egui::FontDefinitions::default();
-        fonts
-            .font_data
-            .insert("my_font".to_owned(), egui::FontData::from_static(FONT));
+        fonts.font_data.insert(
+            "my_font".to_owned(),
+            Arc::new(egui::FontData::from_static(FONT)),
+        );
         fonts
             .families
             .entry(egui::FontFamily::Proportional)

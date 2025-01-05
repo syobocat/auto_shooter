@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 device_query = "2.1.0"
-eframe = "0.28.1"
-enigo = { version = "0.2.1", features = ["wayland", "x11rb"], default-features = false }
-tokio = { version = "1.40.0", features = ["full"] }
+eframe = "0.30.0"
+enigo = { version = "0.3.0", default-features = false, features = ["wayland", "x11rb"] }
+tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"] }
