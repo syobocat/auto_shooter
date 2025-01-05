@@ -80,9 +80,9 @@ impl eframe::App for AutoShooter {
         let device_state = device_query::DeviceState::new();
         if self.wait_for_a_key {
             let keys: Vec<Keycode> = device_state.get_keys();
-            if let Some(key) = keys.get(0) {
+            if let Some(key) = keys.first() {
                 if key == &Keycode::Escape {
-                    self.condition = None
+                    self.condition = None;
                 } else {
                     self.condition = Some(*key);
                 }
@@ -164,10 +164,8 @@ impl eframe::App for AutoShooter {
             ui.horizontal(|ui| {
                 if self.wait_for_a_key {
                     ui.add_enabled(false, egui::Button::new("キーを押してください"));
-                } else {
-                    if ui.button("条件指定").clicked() {
-                        self.wait_for_a_key = true;
-                    };
+                } else if ui.button("条件指定").clicked() {
+                    self.wait_for_a_key = true;
                 }
                 if let Some(key) = self.condition {
                     ui.label(format!("{key:?}"));
@@ -229,23 +227,17 @@ async fn auto_click(
             match condition_mode {
                 ConditionMode::OnPressed => {
                     if keys.contains(&key) {
-                        if enigo.button(Button::Left, Click).is_err() {
-                            std::process::exit(1);
-                        }
+                        enigo.button(Button::Left, Click).expect("Failed to click!");
                     }
                 }
                 ConditionMode::OnReleased => {
                     if !keys.contains(&key) {
-                        if enigo.button(Button::Left, Click).is_err() {
-                            std::process::exit(1);
-                        }
+                        enigo.button(Button::Left, Click).expect("Failed to click!");
                     }
                 }
             }
         } else {
-            if enigo.button(Button::Left, Click).is_err() {
-                std::process::exit(1);
-            }
+            enigo.button(Button::Left, Click).expect("Failed to click!");
         }
         std::thread::sleep(Duration::from_nanos(wait));
     }
