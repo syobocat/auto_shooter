@@ -23,11 +23,18 @@ enum State {
     Cps,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+enum ConditionMode {
+    OnPressed,
+    OnReleased,
+}
+
 pub struct AutoShooter {
     input: String,
     is_valid_input: bool,
     wait_for_a_key: bool,
     condition: Option<Keycode>,
+    condition_mode: ConditionMode,
     state: State,
     calculated_from: State,
     cps: u64,
@@ -42,6 +49,7 @@ impl Default for AutoShooter {
             is_valid_input: true,
             wait_for_a_key: false,
             condition: None,
+            condition_mode: ConditionMode::OnPressed,
             state: State::Cps,
             calculated_from: State::Cps,
             cps: DEFAULT_CPS,
@@ -165,6 +173,18 @@ impl eframe::App for AutoShooter {
                     ui.label(format!("{key:?}"));
                 }
             });
+            if self.condition.is_some() {
+                ui.radio_value(
+                    &mut self.condition_mode,
+                    ConditionMode::OnPressed,
+                    "押している間連射",
+                );
+                ui.radio_value(
+                    &mut self.condition_mode,
+                    ConditionMode::OnReleased,
+                    "押している間停止",
+                );
+            }
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                 if self.is_running.load(Ordering::Relaxed) {
@@ -185,6 +205,7 @@ impl eframe::App for AutoShooter {
                                 self.wait,
                                 Arc::clone(&self.is_running),
                                 self.condition,
+                                self.condition_mode,
                             ));
                         };
                     }
@@ -194,12 +215,34 @@ impl eframe::App for AutoShooter {
     }
 }
 
-async fn auto_click(wait: u64, is_running: Arc<AtomicBool>, condition: Option<Keycode>) {
+async fn auto_click(
+    wait: u64,
+    is_running: Arc<AtomicBool>,
+    condition: Option<Keycode>,
+    condition_mode: ConditionMode,
+) {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
     let device_state = device_query::DeviceState::new();
     while is_running.load(Ordering::Relaxed) {
-        let keys: Vec<Keycode> = device_state.get_keys();
-        if condition.is_none() || keys.contains(&condition.unwrap()) {
+        if let Some(key) = condition {
+            let keys: Vec<Keycode> = device_state.get_keys();
+            match condition_mode {
+                ConditionMode::OnPressed => {
+                    if keys.contains(&key) {
+                        if enigo.button(Button::Left, Click).is_err() {
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                ConditionMode::OnReleased => {
+                    if !keys.contains(&key) {
+                        if enigo.button(Button::Left, Click).is_err() {
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        } else {
             if enigo.button(Button::Left, Click).is_err() {
                 std::process::exit(1);
             }
